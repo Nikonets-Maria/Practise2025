@@ -1,8 +1,10 @@
 // src/pages/Login.js
+// Страница входа и регистрации в EduCollab с переключаемым режимом.
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { getMockUsers, saveMockUsers } from '../data/mockData';  // mockUsers не нужен, если не используем напрямую
+import { getMockUsers, saveMockUsers } from '../data/mockData';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -11,14 +13,15 @@ function Login() {
   const [role, setRole] = useState('student');
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');  // Новый: для успеха без alert
+  const [success, setSuccess] = useState('');
+  
   const { setCurrentUser } = useAppContext();
   const navigate = useNavigate();
+  
   const emailRef = useRef(null);
-  const nameRef = useRef(null);  // Для автофокуса на name в sign up
+  const nameRef = useRef(null);
 
   useEffect(() => {
-    // Автофокус на первое поле
     if (isSignUp) {
       nameRef.current?.focus();
     } else {
@@ -26,14 +29,9 @@ function Login() {
     }
   }, [isSignUp]);
 
-  const clearError = () => {
-    if (error) setError('');
-  };
-
-  const clearSuccess = () => {
-    if (success) setSuccess('');
-  };
-
+  const clearError = () => setError('');
+  const clearSuccess = () => setSuccess('');
+  
   const resetForm = () => {
     setEmail('');
     setPassword('');
@@ -60,10 +58,9 @@ function Login() {
   const handleSignUp = (e) => {
     e.preventDefault();
     setError('');
-    setSuccess('');  // Очистка предыдущего успеха
+    setSuccess('');
     const currentUsers = getMockUsers();
-
-    // Валидация (без изменений)
+    
     if (!name.trim()) {
       setError('Введите имя!');
       nameRef.current?.focus();
@@ -82,14 +79,13 @@ function Login() {
     }
     if (password.length < 6) {
       setError('Пароль минимум 6 символов!');
-      // Фокус на password, но ref нет — можно добавить
       return;
     }
     if (!['teacher', 'student'].includes(role)) {
       setError('Неверная роль!');
       return;
     }
-
+    
     const newUser = {
       id: Date.now().toString(),
       name: name.trim(),
@@ -97,35 +93,22 @@ function Login() {
       role,
       password,
     };
-
     const updatedUsers = [...currentUsers, newUser];
     saveMockUsers(updatedUsers);
-
     setCurrentUser(newUser);
-    setSuccess(`Регистрация успешна! Добро пожаловать, ${newUser.name}!`);  // В UI вместо alert
-    // navigate('/') оставляем, но success покажет перед редиректом (или delay если нужно)
-    setTimeout(() => navigate('/'), 1500);  // Короткая задержка для показа успеха
+    setSuccess(`Регистрация успешна! Добро пожаловать, ${newUser.name}!`);
+    setTimeout(() => navigate('/'), 1500);
   };
 
   return (
-    <div style={{
-      maxWidth: '400px',
-      margin: '50px auto',
-      padding: '30px',
-      border: '1px solid #ddd',
-      borderRadius: '10px',
-      boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-      backgroundColor: '#fff'
-    }}>
-      <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#333' }}>
+    <div className="login-container">
+      <h2 className="login-title">
         {isSignUp ? 'Регистрация в EduCollab' : 'Вход в EduCollab'}
       </h2>
-      <form onSubmit={isSignUp ? handleSignUp : handleLogin} style={{ display: 'flex', flexDirection: 'column' }}>
+      <form onSubmit={isSignUp ? handleSignUp : handleLogin} className="login-form">
         {isSignUp && (
-          <div style={{ marginBottom: '15px' }}>
-            <label htmlFor="name" style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-              Имя:
-            </label>
+          <div className="form-field">
+            <label htmlFor="name" className="form-label">Имя:</label>
             <input
               id="name"
               type="text"
@@ -137,21 +120,12 @@ function Login() {
                 clearSuccess();
               }}
               required
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '5px',
-                fontSize: '16px',
-                boxSizing: 'border-box'
-              }}
+              className="form-input"
             />
           </div>
         )}
-        <div style={{ marginBottom: '15px' }}>
-          <label htmlFor="email" style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-            Email:
-          </label>
+        <div className="form-field">
+          <label htmlFor="email" className="form-label">Email:</label>
           <input
             id="email"
             type="email"
@@ -163,20 +137,11 @@ function Login() {
               clearSuccess();
             }}
             required
-            style={{
-              width: '100%',
-              padding: '10px',
-              border: '1px solid #ddd',
-              borderRadius: '5px',
-              fontSize: '16px',
-              boxSizing: 'border-box'
-            }}
+            className="form-input"
           />
         </div>
-        <div style={{ marginBottom: '15px' }}>
-          <label htmlFor="password" style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-            Пароль:
-          </label>
+        <div className="form-field">
+          <label htmlFor="password" className="form-label">Пароль:</label>
           <input
             id="password"
             type="password"
@@ -187,21 +152,12 @@ function Login() {
               clearSuccess();
             }}
             required
-            style={{
-              width: '100%',
-              padding: '10px',
-              border: '1px solid #ddd',
-              borderRadius: '5px',
-              fontSize: '16px',
-              boxSizing: 'border-box'
-            }}
+            className="form-input"
           />
         </div>
         {isSignUp && (
-          <div style={{ marginBottom: '15px' }}>
-            <label htmlFor="role" style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-              Роль:
-            </label>
+          <div className="form-field">
+            <label htmlFor="role" className="form-label">Роль:</label>
             <select
               id="role"
               value={role}
@@ -210,50 +166,24 @@ function Login() {
                 clearError();
                 clearSuccess();
               }}
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '5px',
-                fontSize: '16px',
-                boxSizing: 'border-box'
-              }}
+              className="form-select"
             >
               <option value="student">Студент</option>
               <option value="teacher">Учитель</option>
             </select>
           </div>
         )}
-        {error && (
-          <p style={{ color: 'red', marginBottom: '15px', textAlign: 'center' }}>
-            {error}
-          </p>
-        )}
-        {success && (
-          <p style={{ color: 'green', marginBottom: '15px', textAlign: 'center' }}>
-            {success}
-          </p>
-        )}
+        {error && <p className="error-msg">{error}</p>}
+        {success && <p className="success-msg">{success}</p>}
         <button
           type="submit"
           aria-label={isSignUp ? 'Зарегистрироваться' : 'Войти'}
-          style={{
-            padding: '12px 20px',
-            background: '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            fontSize: '16px',
-            cursor: 'pointer',
-            transition: 'background 0.2s'
-          }}
-          onMouseOver={(e) => e.target.style.background = '#0056b3'}
-          onMouseOut={(e) => e.target.style.background = '#007bff'}
+          className="btn btn-primary"
         >
           {isSignUp ? 'Зарегистрироваться' : 'Войти'}
         </button>
       </form>
-      <div style={{ textAlign: 'center', marginTop: '20px' }}>
+      <div className="toggle-section">
         <button
           type="button"
           onClick={() => {
@@ -261,13 +191,7 @@ function Login() {
             resetForm();
           }}
           aria-label={isSignUp ? 'Перейти к входу' : 'Перейти к регистрации'}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#007bff',
-            cursor: 'pointer',
-            textDecoration: 'underline'
-          }}
+          className="btn-link"
         >
           {isSignUp ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Зарегистрироваться'}
         </button>

@@ -1,227 +1,236 @@
 // src/context/AppContext.js
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { mockProjects, mockUsers } from '../data/mockData';  // Импорт mock-данных
+import {                         
+  getMockUsers,                  
+  saveMockUsers,                  
+  getProjects,                   
+  saveProjects                   
+} from '../data/mockData';       
 
-// Создаем контекст
+// Создание контекста
 const AppContext = createContext();
 
-// Хук для использования контекста
+// Хук для доступа к контексту
 export const useAppContext = () => {
   const context = useContext(AppContext);
   if (!context) {
-    throw new Error('useAppContext must be used within AppProvider');
+    throw new Error('useAppContext must be used within AppProvider');  
   }
   return context;
 };
 
-// Провайдер
+// Провайдер состояния
 export const AppProvider = ({ children }) => {
-  // Состояние для текущего пользователя (с persist)
+  // Состояние: Текущий пользователь  
   const [currentUser, setCurrentUserState] = useState(() => {
-    const saved = localStorage.getItem('currentUser');
-    return saved ? JSON.parse(saved) : null;
+    const saved = localStorage.getItem('currentUser');  
+    return saved ? JSON.parse(saved) : null;       
   });
   
-  // Функция для установки currentUser с сохранением
+  // Функция: Установка currentUser с синхронизацией localStorage
   const setCurrentUser = (user) => {
     setCurrentUserState(user);
     if (user) {
-      localStorage.setItem('currentUser', JSON.stringify(user));
+      localStorage.setItem('currentUser', JSON.stringify(user));  
     } else {
-      localStorage.removeItem('currentUser');
-      // Очистка projects при логауте (опционально)
-      // localStorage.removeItem('projects');
+      localStorage.removeItem('currentUser');       
     }
   };
 
-  const [projects, setProjects] = useState(mockProjects);  // Mock-данные
+  // Состояние: Список проектов  
+  const [projects, setProjectsState] = useState(() => {
+    return getProjects();                            
+  });
 
-  // Функция для создания нового проекта
-  const createProject = (project) => {
-    const { teamIds = [currentUser.id] } = project;
-    const newProject = {
-      id: Date.now().toString(),
-      title: project.title,
-      description: project.description,
-      ownerId: currentUser.id,
-      team: teamIds,
-      status: 'Идея',
-      progress: 0,
-      comments: [],
-      createdAt: new Date().toISOString(),
-      tasks: [],
-    };
-    setProjects((prev) => [...prev, newProject]);
+  // Функция: Установка projects с синхронизацией localStorage
+  const setProjects = (newProjects) => {
+    setProjectsState(newProjects);
+    saveProjects(newProjects);                       
   };
 
+  // Состояние: Список пользователей  
+  const [users, setUsersState] = useState(() => {
+    return getMockUsers();                            
+  });
 
-  // Инициализация: загружаем mockProjects в projects при монтировании (если пусто)
+  // Функция: Установка users с синхронизацией localStorage
+  const setUsers = (newUsers) => {
+    setUsersState(newUsers);
+    saveMockUsers(newUsers);                         
+  };
+
+  // Эффект инициализации
   useEffect(() => {
-    setProjects(mockProjects);  // Mock-данные в state
-  }, []);
+    if (projects.length === 0) {
+      const mockProjs = getProjects();               
+      setProjects(mockProjs);
+    }
+    if (users.length === 0) {
+      const mockUsers = getMockUsers();              
+      setUsers(mockUsers);
+    }
+  }, []);                                            
 
-  // Функция для создания нового проекта
-//   const createProject = (newProject) => {
-//     if (!currentUser) return; // Проверка аутентификации
-//     const updatedProjects = [
-//       ...projects,
-//       {
-//         ...newProject,
-//         id: Date.now().toString(),  // Простой уникальный ID
-//         ownerId: currentUser.id,
-//         team: [currentUser.id],     // Владелец в команде (массив ID)
-//         status: 'В работе',         // Дефолтный статус
-//         progress: 0,
-//         comments: [],
-//         tasks: [],                  // Пустой массив задач
-//         createdAt: new Date().toISOString(),
-//       },
-//     ];
-//     setProjects(updatedProjects);
-//   };
-
-//   const createProject = (project) => {
-//   const { teamIds = [currentUser.id] } = project;  // Дефолт: владелец в команде
-//   const newProject = {
-//     id: Date.now().toString(),
-//     title: project.title,
-//     description: project.description,
-//     ownerId: currentUser.id,
-//     team: teamIds,  // Используем переданный teamIds
-//     status: 'Идея',
-//     progress: 0,
-//     comments: [],
-//     createdAt: new Date().toISOString(),
-//     tasks: [],
-//   };
-//   setProjects((prev) => [...prev, newProject]);
-// };
-
-
+  // Функция: Logout
   const logout = () => {
-    setCurrentUser(null);  // Удалит из localStorage автоматически
+    setCurrentUser(null);                            
   };
-  
 
-  // Функция для добавления задачи
-  const addTask = (projectId, task) => {
-    if (!currentUser) return;
-    setProjects(prevProjects => 
-      prevProjects.map(project =>
-        project.id === projectId
-          ? { ...project, tasks: [...(project.tasks || []), { ...task, id: Date.now().toString() }] }
-          : project
+  // Функция: Создание нового проекта
+  const createProject = (projectData) => {
+    if (!currentUser) return;                          
+    if (!['teacher', 'admin'].includes(currentUser.role)) return; 
+    const { teamIds = [currentUser.id] } = projectData;  
+    const newProject = {
+      id: Date.now().toString(),                     
+      title: projectData.title,
+      description: projectData.description,
+      ownerId: currentUser.id,                        
+      team: teamIds,                                  
+      status: 'Идея',                          
+      progress: 0,
+      comments: [],                                   
+      createdAt: new Date().toISOString(),          
+      tasks: []                                      
+    };
+    setProjects(prev => [...prev, newProject]);      
+  };
+
+  // Функция: Добавление задачи в проект
+  const addTask = (projectId, taskData) => {
+    if (!currentUser) return;                          
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;                             
+    const isMember = project.team.includes(currentUser.id) || project.ownerId === currentUser.id;
+    if (!isMember) return;                             
+    const newTask = { ...taskData, id: Date.now().toString() };  
+    setProjects(prev => 
+      prev.map(p => 
+        p.id === projectId 
+          ? { ...p, tasks: [...(p.tasks || []), newTask] } 
+          : p
       )
-    );
+    );                                               
   };
 
-  // Функция для изменения статуса задачи
+  // Функция: Изменение статуса задачи 
   const updateTaskStatus = (projectId, taskId, newStatus) => {
     if (!currentUser) return;
-    setProjects(prevProjects => 
-      prevProjects.map(project =>
-        project.id === projectId
-          ? {
-              ...project,
-              tasks: project.tasks.map(task =>
-                task.id === taskId ? { ...task, status: newStatus } : task
-              )
-            }
-          : project
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+    const task = project.tasks.find(t => t.id === taskId);
+    if (!task) return;                                 
+    const canUpdate = task.assignedTo === currentUser.id || project.ownerId === currentUser.id;
+    if (!canUpdate) return;                            
+    setProjects(prev => 
+      prev.map(p => 
+        p.id === projectId 
+          ? { 
+              ...p, 
+              tasks: p.tasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t) 
+            } 
+          : p
       )
     );
   };
 
-  // Функция для удаления задачи (только владелец)
+  // Функция: Удаление задачи
   const removeTask = (projectId, taskId) => {
     if (!currentUser) return;
-    setProjects(prevProjects => 
-      prevProjects.map(project =>
-        project.id === projectId && project.ownerId === currentUser.id  // Только владелец
-          ? { ...project, tasks: project.tasks.filter(task => task.id !== taskId) }
-          : project
+    const project = projects.find(p => p.id === projectId);
+    if (!project || project.ownerId !== currentUser.id) return; 
+    setProjects(prev => 
+      prev.map(p => 
+        p.id === projectId 
+          ? { ...p, tasks: p.tasks.filter(t => t.id !== taskId) } 
+          : p
       )
     );
   };
 
-  // Функция для обновления проекта
-  const updateProject = (id, updates) => {
+  // Функция: Обновление проекта
+  const updateProject = (projectId, updates) => {
     if (!currentUser) return;
-    const updatedProjects = projects.map(p =>
-      p.id === id ? { ...p, ...updates } : p
+    const project = projects.find(p => p.id === projectId);
+    if (!project || project.ownerId !== currentUser.id) return;  
+    setProjects(prev => 
+      prev.map(p => p.id === projectId ? { ...p, ...updates } : p)
     );
-    setProjects(updatedProjects);
   };
 
-  // Функция для добавления комментария
-  const addComment = (projectId, comment) => {
+  // Функция: Добавление комментария
+  const addComment = (projectId, commentData) => {
     if (!currentUser) return;
-    const updatedProjects = projects.map(p =>
-      p.id === projectId ? {
-        ...p,
-        comments: [...(p.comments || []), { ...comment, id: Date.now().toString(), date: new Date().toISOString().split('T')[0] }]
-      } : p
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+    const isMember = project.team.includes(currentUser.id) || project.ownerId === currentUser.id;
+    if (!isMember) return;                             
+    const newComment = { 
+      ...commentData, 
+      id: Date.now().toString(), 
+      date: new Date().toISOString().split('T')[0]   
+    };
+    setProjects(prev => 
+      prev.map(p => 
+        p.id === projectId 
+          ? { ...p, comments: [...(p.comments || []), newComment] } 
+          : p
+      )
     );
-    setProjects(updatedProjects);
   };
 
-  // Функция для приглашения пользователя в команду (добавляет ID)
+  // Функция: Приглашение пользователя в команду
   const inviteUserToTeam = (projectId, userId) => {
-    if (!mockUsers.find(u => u.id === userId) || !currentUser) return;  // Проверка на существование user и аутентификацию
+    if (!currentUser) return;
     const project = projects.find(p => p.id === projectId);
-    if (!project || project.ownerId !== currentUser.id) return;  // Только владелец
-    const updatedProjects = projects.map(p =>
-      p.id === projectId ? {
-        ...p,
-        team: [...new Set([...p.team, userId])]  // Убираем дубликаты, добавляем ID
-      } : p
+    const user = users.find(u => u.id === userId);
+    if (!project || !user || project.ownerId !== currentUser.id || project.team.includes(userId)) return;
+    setProjects(prev => 
+      prev.map(p => 
+        p.id === projectId 
+          ? { ...p, team: [...new Set([...p.team, userId])] }  
+          : p
+      )
     );
-    setProjects(updatedProjects);
   };
 
-  // Функция для приглашения в проект (alias для inviteUserToTeam, с проверками)
-  const inviteToProject = (projectId, userId) => {
-    const project = projects.find(p => p.id === projectId);
-    const user = mockUsers.find(u => u.id === userId);
-    if (!project || !user || project.team.includes(userId) || project.ownerId !== currentUser.id) {
-      return;  // Не приглашать, если нет проекта, юзера, уже в команде или не владелец
-    }
-    inviteUserToTeam(projectId, userId);  // Используем унифицированную функцию
-  };
-
-  // Функция для удаления из проекта (только владелец, нельзя удалить самого себя)
+  // Функция: Удаление из проекта
   const removeFromProject = (projectId, userId) => {
+    if (!currentUser) return;
     const project = projects.find(p => p.id === projectId);
-    if (!project || project.ownerId !== currentUser.id || userId === project.ownerId || !project.team.includes(userId)) {
-      return;  // Невозможно удалить: не владелец, пытаешься удалить самого себя или юзер не в команде
-    }
-    const updatedProjects = projects.map(p =>
-      p.id === projectId ? { ...p, team: p.team.filter(id => id !== userId) } : p
+    if (!project || project.ownerId !== currentUser.id || userId === project.ownerId || !project.team.includes(userId)) return;
+    setProjects(prev => 
+      prev.map(p => 
+        p.id === projectId 
+          ? { ...p, team: p.team.filter(id => id !== userId) } 
+          : p
+      )
     );
-    setProjects(updatedProjects);
   };
 
-  // Объект value для Provider (включает все функции и состояния)
+  // Value object: Экспорт state и functions
   const value = {
+    // State
     currentUser,
-    setCurrentUser,
-    logout,  // Добавлен для удобства
     projects,
+    users,
+    // Auth/Logout
+    setCurrentUser,
+    logout,
+    setUsers,
+    // Project Operations
     createProject,
-    setProjects,  // Осторожно использовать напрямую; лучше через функции
+    setProjects,
     addTask,
     updateTaskStatus,
     removeTask,
     updateProject,
     addComment,
     inviteUserToTeam,
-    inviteToProject,
-    removeFromProject,
-    // Дополнительно: список пользователей (для поиска при приглашении)
-    users: mockUsers,
-    
+    removeFromProject
   };
 
+  // Рендер: Provider с children и value
   return (
     <AppContext.Provider value={value}>
       {children}
