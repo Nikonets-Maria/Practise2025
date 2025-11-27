@@ -1,23 +1,37 @@
 // src/pages/Login.js
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { getMockUsers, saveMockUsers, mockUsers } from '../data/mockData';  // Добавь экспорты в mockData.js
+import { getMockUsers, saveMockUsers } from '../data/mockData';  // mockUsers не нужен, если не используем напрямую
 
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');  // Для Sign Up
-  const [role, setRole] = useState('student');  // Дефолт ролевая
-  const [isSignUp, setIsSignUp] = useState(false);  // Режим: false - login, true - sign up
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('student');
+  const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');  // Новый: для успеха без alert
   const { setCurrentUser } = useAppContext();
   const navigate = useNavigate();
-  const emailRef = useRef(null);  // Для автофокуса
+  const emailRef = useRef(null);
+  const nameRef = useRef(null);  // Для автофокуса на name в sign up
 
-  // Очистка ошибки при изменении полей
+  useEffect(() => {
+    // Автофокус на первое поле
+    if (isSignUp) {
+      nameRef.current?.focus();
+    } else {
+      emailRef.current?.focus();
+    }
+  }, [isSignUp]);
+
   const clearError = () => {
     if (error) setError('');
+  };
+
+  const clearSuccess = () => {
+    if (success) setSuccess('');
   };
 
   const resetForm = () => {
@@ -26,43 +40,49 @@ function Login() {
     setName('');
     setRole('student');
     setError('');
+    setSuccess('');
   };
 
   const handleLogin = (e) => {
     e.preventDefault();
     setError('');
-    const currentUsers = getMockUsers();  // Используем localStorage или дефолт
+    const currentUsers = getMockUsers();
     const user = currentUsers.find(u => u.email === email.toLowerCase() && u.password === password);
     if (user) {
       setCurrentUser(user);
       navigate('/');
     } else {
       setError('Неверный email или пароль. (Тест: user@example.com / password123)');
-      if (emailRef.current) emailRef.current.focus();
+      emailRef.current?.focus();
     }
   };
 
   const handleSignUp = (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');  // Очистка предыдущего успеха
     const currentUsers = getMockUsers();
 
-    // Валидация
+    // Валидация (без изменений)
     if (!name.trim()) {
       setError('Введите имя!');
+      nameRef.current?.focus();
       return;
     }
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setError('Введите корректный email!');
+      emailRef.current?.focus();
       return;
     }
     const lowerEmail = email.toLowerCase();
     if (currentUsers.some(u => u.email === lowerEmail)) {
       setError('Этот email уже зарегистрирован!');
+      emailRef.current?.focus();
       return;
     }
     if (password.length < 6) {
       setError('Пароль минимум 6 символов!');
+      // Фокус на password, но ref нет — можно добавить
       return;
     }
     if (!['teacher', 'student'].includes(role)) {
@@ -70,23 +90,21 @@ function Login() {
       return;
     }
 
-    // Создать нового пользователя
     const newUser = {
-      id: Date.now().toString(),  // Уникальный ID
+      id: Date.now().toString(),
       name: name.trim(),
       email: lowerEmail,
       role,
-      password,  // В реале - хэшировать, но mock
+      password,
     };
 
-    // Сохранить
     const updatedUsers = [...currentUsers, newUser];
     saveMockUsers(updatedUsers);
 
-    // Авто-логин
     setCurrentUser(newUser);
-    navigate('/');
-    alert(`Регистрация успешна! Добро пожаловать, ${newUser.name}!`);
+    setSuccess(`Регистрация успешна! Добро пожаловать, ${newUser.name}!`);  // В UI вместо alert
+    // navigate('/') оставляем, но success покажет перед редиректом (или delay если нужно)
+    setTimeout(() => navigate('/'), 1500);  // Короткая задержка для показа успеха
   };
 
   return (
@@ -111,10 +129,12 @@ function Login() {
             <input
               id="name"
               type="text"
+              ref={nameRef}
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
                 clearError();
+                clearSuccess();
               }}
               required
               style={{
@@ -140,6 +160,7 @@ function Login() {
             onChange={(e) => {
               setEmail(e.target.value);
               clearError();
+              clearSuccess();
             }}
             required
             style={{
@@ -163,9 +184,9 @@ function Login() {
             onChange={(e) => {
               setPassword(e.target.value);
               clearError();
+              clearSuccess();
             }}
             required
-            minLength={isSignUp ? 6 : 0}  // Для sign up - проверка длины
             style={{
               width: '100%',
               padding: '10px',
@@ -187,6 +208,7 @@ function Login() {
               onChange={(e) => {
                 setRole(e.target.value);
                 clearError();
+                clearSuccess();
               }}
               style={{
                 width: '100%',
@@ -207,8 +229,14 @@ function Login() {
             {error}
           </p>
         )}
+        {success && (
+          <p style={{ color: 'green', marginBottom: '15px', textAlign: 'center' }}>
+            {success}
+          </p>
+        )}
         <button
           type="submit"
+          aria-label={isSignUp ? 'Зарегистрироваться' : 'Войти'}
           style={{
             padding: '12px 20px',
             background: '#007bff',
@@ -227,10 +255,12 @@ function Login() {
       </form>
       <div style={{ textAlign: 'center', marginTop: '20px' }}>
         <button
+          type="button"
           onClick={() => {
             setIsSignUp(!isSignUp);
-            resetForm();  // Очищаем поля при переключении
+            resetForm();
           }}
+          aria-label={isSignUp ? 'Перейти к входу' : 'Перейти к регистрации'}
           style={{
             background: 'none',
             border: 'none',

@@ -16,9 +16,44 @@ export const useAppContext = () => {
 
 // Провайдер
 export const AppProvider = ({ children }) => {
-  // Состояние для текущего пользователя и списка проектов
-  const [currentUser, setCurrentUser] = useState(null);
-  const [projects, setProjects] = useState([]);
+  // Состояние для текущего пользователя (с persist)
+  const [currentUser, setCurrentUserState] = useState(() => {
+    const saved = localStorage.getItem('currentUser');
+    return saved ? JSON.parse(saved) : null;
+  });
+  
+  // Функция для установки currentUser с сохранением
+  const setCurrentUser = (user) => {
+    setCurrentUserState(user);
+    if (user) {
+      localStorage.setItem('currentUser', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('currentUser');
+      // Очистка projects при логауте (опционально)
+      // localStorage.removeItem('projects');
+    }
+  };
+
+  const [projects, setProjects] = useState(mockProjects);  // Mock-данные
+
+  // Функция для создания нового проекта
+  const createProject = (project) => {
+    const { teamIds = [currentUser.id] } = project;
+    const newProject = {
+      id: Date.now().toString(),
+      title: project.title,
+      description: project.description,
+      ownerId: currentUser.id,
+      team: teamIds,
+      status: 'Идея',
+      progress: 0,
+      comments: [],
+      createdAt: new Date().toISOString(),
+      tasks: [],
+    };
+    setProjects((prev) => [...prev, newProject]);
+  };
+
 
   // Инициализация: загружаем mockProjects в projects при монтировании (если пусто)
   useEffect(() => {
@@ -45,24 +80,27 @@ export const AppProvider = ({ children }) => {
 //     setProjects(updatedProjects);
 //   };
 
-  const createProject = (project) => {
-  const { teamIds = [currentUser.id] } = project;  // Дефолт: владелец в команде
-  const newProject = {
-    id: Date.now().toString(),
-    title: project.title,
-    description: project.description,
-    ownerId: currentUser.id,
-    team: teamIds,  // Используем переданный teamIds
-    status: 'Идея',
-    progress: 0,
-    comments: [],
-    createdAt: new Date().toISOString(),
-    tasks: [],
+//   const createProject = (project) => {
+//   const { teamIds = [currentUser.id] } = project;  // Дефолт: владелец в команде
+//   const newProject = {
+//     id: Date.now().toString(),
+//     title: project.title,
+//     description: project.description,
+//     ownerId: currentUser.id,
+//     team: teamIds,  // Используем переданный teamIds
+//     status: 'Идея',
+//     progress: 0,
+//     comments: [],
+//     createdAt: new Date().toISOString(),
+//     tasks: [],
+//   };
+//   setProjects((prev) => [...prev, newProject]);
+// };
+
+
+  const logout = () => {
+    setCurrentUser(null);  // Удалит из localStorage автоматически
   };
-  setProjects((prev) => [...prev, newProject]);
-};
-
-
   
 
   // Функция для добавления задачи
@@ -167,9 +205,10 @@ export const AppProvider = ({ children }) => {
   const value = {
     currentUser,
     setCurrentUser,
+    logout,  // Добавлен для удобства
     projects,
-    setProjects,  // Осторожно использовать напрямую; лучше через функции
     createProject,
+    setProjects,  // Осторожно использовать напрямую; лучше через функции
     addTask,
     updateTaskStatus,
     removeTask,
@@ -180,6 +219,7 @@ export const AppProvider = ({ children }) => {
     removeFromProject,
     // Дополнительно: список пользователей (для поиска при приглашении)
     users: mockUsers,
+    
   };
 
   return (
